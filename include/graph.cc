@@ -3,6 +3,10 @@
 #include <set>
 #include <stdexcept>
 #include <cmath>
+#include <functional>
+#include <queue>
+#include <limits>
+#include <iostream>
 
 
 template<typename V, typename D = double>
@@ -12,6 +16,10 @@ public:
         V from;
         V to;
         D distance;
+
+        friend std::ostream &operator<<(std::ostream& os, const Edge &edge) {
+            return os << "(" << edge.from << " ," << edge.to << ") = " << edge.distance << "\n";
+        }
     };
 private:
     std::unordered_map <V, std::vector<Edge>> _edges;
@@ -138,4 +146,91 @@ public:
         if (!has_vertex(v)) return 0; // Если вершина не существует, возвращаем 0
         return _edges.at(v).size(); // Возвращаем размер вектора ребер, инцидентных вершине v
     }
+
+    // Обход графа в ширину
+    void walk(const V &start, const std::function<void(const V &)> &action) const {
+        // Создаем карту для отслеживания посещенных вершин
+        std::unordered_map<V, bool> visited;
+
+        // Инициализируем все вершины как непосещенные
+        for (const auto &vert: _vertices) visited[vert] = false;
+
+        // Создаем очередь для обхода в ширину
+        std::queue<V> queue;
+        queue.push(start);
+
+        // Пока очередь не пуста, продолжаем обход
+        while (!queue.empty()) {
+            auto current = queue.front();
+            queue.pop();
+
+            // Если текущая вершина не посещена, помечаем ее как посещенную и выполняем действие
+            if (!visited[current]) {
+                visited[current] = true;
+                action(current);
+
+                // Для каждого ребра, исходящего из текущей вершины, добавляем конечную вершину в очередь, если она не посещена
+                for (const auto &edge: _edges.at(current))
+                    if (!visited[edge.to]) queue.push(edge.to);
+            }
+        }
+    }
+    std::vector<Edge> shortest_path(const V &start, const V &end) const {
+        // Проверяем, что начальная и конечная вершины существуют в графе
+        if (!_vertices.contains(start) || !_vertices.contains(end)) throw std::invalid_argument("not found");
+
+        // Инициализация расстояний и предшественников
+        std::unordered_map<V, D> distance; // Хранит кратчайшие расстояния от начальной вершины до остальных
+        std::unordered_map<V, V> predecessor; // Хранит предшественников для восстановления пути
+
+        // Инициализация всех вершин с бесконечными расстояниями и пустыми предшественниками
+        for (const auto &vertex : _vertices) {
+            distance[vertex] = std::numeric_limits<D>::infinity();
+            predecessor[vertex] = V();
+        }
+        distance[start] = 0; // Расстояние от начальной вершины до самой себя равно 0
+
+        // Алгоритм Беллмана-Форда
+        for (size_t i = 0; i < _vertices.size() - 1; ++i) {
+            for (const auto &u : _vertices) {
+                // Проходим по всем ребрам и обновляем кратчайшие расстояния
+                if (distance[u] == std::numeric_limits<D>::infinity()) continue;
+                for (const auto &edge : _edges.at(u)) {
+                    if (distance[u] + edge.distance < distance[edge.to]) {
+                        distance[edge.to] = distance[u] + edge.distance;
+                        predecessor[edge.to] = u;
+                    }
+                }
+            }
+        }
+
+        // Проверка наличия отрицательных циклов
+        for (const auto &u : _vertices) {
+            if (distance[u] == std::numeric_limits<D>::infinity()) continue;
+            for (const auto &edge : _edges.at(u)) {
+                if (distance[u] + edge.distance < distance[edge.to]) {
+                    throw std::runtime_error("Graph contains a negative weight cycle");
+                }
+            }
+        }
+
+        // Построение пути от конечной вершины к начальной
+        std::vector<Edge> path;
+        for (V at = end; at != start; at = predecessor[at]) {
+            // Проверяем наличие пути от начальной к конечной вершине
+            if (predecessor.find(at) == predecessor.end() || predecessor[at] == V()) {
+                throw std::runtime_error("No path from start to end");
+            }
+            const V &from = predecessor[at];
+            // Находим ребро в пути и добавляем его в результат
+            auto it = std::find_if(_edges.at(from).begin(), _edges.at(from).end(),
+                                   [&at](const Edge &e) { return e.to == at; });
+            if (it != _edges.at(from).end()) {
+                path.push_back(*it);
+            }
+        }
+        std::reverse(path.begin(), path.end()); // Разворачиваем путь, чтобы он шел от начальной к конечной вершине
+        return path;
+    }
+
 };

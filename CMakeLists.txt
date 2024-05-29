@@ -17,3 +17,6 @@ target_include_directories(graph PUBLIC "include")
 
 add_executable(graph_tests "tests/graph_tests.cc")
 target_link_libraries(graph_tests graph GTest::gtest_main)
+
+add_executable(task "task/task.cc")
+target_link_libraries(task graph)

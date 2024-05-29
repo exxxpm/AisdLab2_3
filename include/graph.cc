@@ -181,12 +181,12 @@ public:
 
         // Инициализация расстояний и предшественников
         std::unordered_map<V, D> distance; // Хранит кратчайшие расстояния от начальной вершины до остальных
-        std::unordered_map<V, V> predecessor; // Хранит предшественников для восстановления пути
+        std::unordered_map<V, V> pred; // Хранит предшественников для восстановления пути
 
         // Инициализация всех вершин с бесконечными расстояниями и пустыми предшественниками
         for (const auto &vertex : _vertices) {
             distance[vertex] = std::numeric_limits<D>::infinity();
-            predecessor[vertex] = V();
+            pred[vertex] = V();
         }
         distance[start] = 0; // Расстояние от начальной вершины до самой себя равно 0
 
@@ -198,7 +198,7 @@ public:
                 for (const auto &edge : _edges.at(u)) {
                     if (distance[u] + edge.distance < distance[edge.to]) {
                         distance[edge.to] = distance[u] + edge.distance;
-                        predecessor[edge.to] = u;
+                        pred[edge.to] = u;
                     }
                 }
             }
@@ -216,12 +216,12 @@ public:
 
         // Построение пути от конечной вершины к начальной
         std::vector<Edge> path;
-        for (V at = end; at != start; at = predecessor[at]) {
+        for (V at = end; at != start; at = pred[at]) {
             // Проверяем наличие пути от начальной к конечной вершине
-            if (predecessor.find(at) == predecessor.end() || predecessor[at] == V()) {
+            if (pred.find(at) == pred.end() || pred[at] == V()) {
                 throw std::runtime_error("No path from start to end");
             }
-            const V &from = predecessor[at];
+            const V &from = pred[at];
             // Находим ребро в пути и добавляем его в результат
             auto it = std::find_if(_edges.at(from).begin(), _edges.at(from).end(),
                                    [&at](const Edge &e) { return e.to == at; });
